@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <h1 class="card-title">
+        <i class="fas fa-code"></i> API Documentation
+    </h1>
+
+    <div class="api-section">
+        <h2>Introduction</h2>
+        <p>API анализатора точности измерений позволяет программно рассчитать показатели точности измерений в соответствии с ГОСТ Р ISO 5725-2-2002.</p>
+
+        <div class="api-alert">
+            <i class="fas fa-key"></i>
+            <strong>Требуется аутентификация:</strong> Все запросы API должны включать <code>X-API-KEY</code> заголовок с вашим ключом API.
+        </div>
+    </div>
+
+    <div class="api-section">
+        <h2>Endpoints</h2>
+
+        <div class="endpoint-card">
+            <div class="endpoint-header">
+                <span class="method post">POST</span>
+                <span class="url">/api/v1/calculate</span>
+            </div>
+            <div class="endpoint-description">
+                <p>Рассчитайте показатели точности измерения (повторимость, воспроизводимость, достоверность).</p>
+            </div>
+
+            <h3>Пример запроса</h3>
+            <pre class="request-example">
+{
+    "data": [
+        {"Laboratory": "Lab1", "Data": 10.1},
+        {"Laboratory": "Lab1", "Data": 10.2},
+        {"Laboratory": "Lab2", "Data": 10.3}
+    ],
+    "calculations": ["repeatability", "reproducibility"],
+    "reference_value": 10.0
+}</pre>
+
+            <h3>Пример ответа</h3>
+            <pre class="response-example">
+{
+    "success": true,
+    "results": {
+        "Повторяемость": {
+            "Стандартное отклонение повторяемости (s_r)": 0.05,
+            "Предел повторяемости (r)": 0.14
+        },
+        "Воспроизводимость": {
+            "Среднее стандартное отклонение повторяемости (s_r)": 0.05,
+            "Стандартное отклонение воспроизводимости (s_L)": 0.1,
+            "Стандартное отклонение промежуточной прецизионности (s_R)": 0.11,
+            "Предел воспроизводимости (R)": 0.31
+        }
+    }
+}</pre>
+        </div>
+    </div>
+
+    <div class="api-section">
+        <h2>Начало работы</h2>
+        <p>Чтобы использовать API:</p>
+        <ol>
+            <li>Получите ключ API от администратора/li>
+            <li>Используйте ключ <code>X-API-KEY</code> в заголовоке с каждым запросом</li>
+            <li>Отправьте POST-запросы на <code>/api/v1/calculate</code> с вашими данными</li>
+        </ol>
+
+        <h3>Python Example</h3>
+        <pre class="code-example">
+import requests
+
+url = "http://your-server-address/api/v1/calculate"
+headers = {"X-API-KEY": "your_api_key_here"}
+data = {
+    "data": [
+        {"Laboratory": "Lab1", "Data": 10.1},
+        {"Laboratory": "Lab1", "Data": 10.2},
+        {"Laboratory": "Lab2", "Data": 10.3}
+    ],
+    "calculations": ["repeatability", "reproducibility"]
+}
+
+response = requests.post(url, json=data, headers=headers)
+print(response.json())</pre>
+    </div>
+</div>
+
+<style>
+.api-section {
+    margin-bottom: 2.5rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid #eee;
+}
+
+.api-alert {
+    padding: 1rem;
+    background-color: #e8f4fd;
+    border-left: 4px solid #3498db;
+    margin: 1.5rem 0;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.api-alert i {
+    color: #3498db;
+    font-size: 1.5rem;
+}
+
+.endpoint-card {
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin: 1.5rem 0;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.endpoint-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.method {
+    padding: 0.25rem 0.75rem;
+    border-radius: 4px;
+    font-weight: bold;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+}
+
+.method.post {
+    background-color: #3498db;
+    color: white;
+}
+
+.url {
+    font-family: 'Courier New', monospace;
+    font-size: 1.1rem;
+}
+
+pre {
+    background-color: #2d2d2d;
+    color: #f8f8f2;
+    padding: 1rem;
+    border-radius: 6px;
+    overflow-x: auto;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.request-example {
+    border-left: 4px solid #3498db;
+}
+
+.response-example {
+    border-left: 4px solid #2ecc71;
+}
+
+.code-example {
+    border-left: 4px solid #e74c3c;
+}
+
+@media (max-width: 768px) {
+    .endpoint-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
+</style>
+{% endblock %}

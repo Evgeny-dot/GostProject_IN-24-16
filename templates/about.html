@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <h1 class="card-title">О разработчиках</h1>
+
+    <div class="result-item">
+        <h3 class="result-title">Команда разработки</h3>
+        <p>Приложение разработано командой студентов Горного университета, группы ИН-24-16.</p>
+
+        <div style="display: flex; gap: 20px; margin-top: 20px;">
+            <div style="flex: 1;">
+                <h4>Члены:</h4>
+                <ul>
+                    <li>Бондарчук П.К. - Project Manager</li>
+                    <li>Васильев С.С. - Системный аналитик</li>
+                </ul>
+            </div>
+            <div style="flex: 1;">
+                <h4>Разработчики</h4>
+                <ul>
+                    <li>Бабанов Е.Е. - Tech Lead</li>
+                    <li>Вождаев В.Д. - Архитектор программного обеспечения</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Блок "При поддержке" с 6 картинками -->
+    <div class="result-item">
+        <h3 class="result-title">При поддержке</h3>
+        <div style="display: flex; justify-content: space-between; margin-top: 20px; flex-wrap: wrap;">
+            <!-- Первая строка картинок -->
+            <div style="width: 30%; text-align: center; margin-bottom: 20px;">
+                <img src="{{ url_for('static', filename='images/support1.jpg') }}" alt="Поддержка 1" style="max-width: 100%; border-radius: 8px;">
+            </div>
+            <div style="width: 30%; text-align: center; margin-bottom: 20px;">
+                <img src="{{ url_for('static', filename='images/support2.jpg') }}" alt="Поддержка 2" style="max-width: 100%; border-radius: 8px;">
+            </div>
+            <div style="width: 30%; text-align: center; margin-bottom: 20px;">
+                <img src="{{ url_for('static', filename='images/support3.jpg') }}" alt="Поддержка 3" style="max-width: 100%; border-radius: 8px;">
+            </div>
+
+            <!-- Вторая строка картинок -->
+
+            <div style="width: 100%; text-align: center;">
+    <img src="{{ url_for('static', filename='images/support5.jpg') }}"
+         alt="Поддержка 5"
+         style="width: 30%; border-radius: 8px; display: block; margin: 0 auto;">
+            </div>
+        </div>
+    </div>
+
+    <div class="result-item">
+        <h3 class="result-title">Контакты</h3>
+        <p>По вопросам сотрудничества и предложений:</p>
+        <p><i class="fas fa-envelope"></i> Email: ee.babanovj.wot@mail.ru</p>
+        <p><i class="fas fa-phone"></i> Телефон: +7 (982) 306-88-45</p>
+    </div>
+</div>
+{% endblock %}

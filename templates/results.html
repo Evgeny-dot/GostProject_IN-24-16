@@ -1,0 +1,386 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <h1 class="card-title">
+        <i class="fas fa-chart-line"></i> Результаты анализа
+    </h1>
+
+    <div class="analysis-meta">
+        <div class="meta-item">
+            <i class="fas fa-calendar-alt"></i>
+            <strong>Дата анализа:</strong>
+            <span>
+                {% if now %}
+                    {{ now.strftime('%d.%m.%Y %H:%M') }}
+                {% else %}
+                    {{ current_time }}
+                {% endif %}
+            </span>
+        </div>
+
+        {% if reference_value %}
+        <div class="meta-item">
+            <i class="fas fa-bullseye"></i>
+            <strong>Опорное значение:</strong>
+            <span>{{ "%.4f"|format(reference_value) }}</span>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="results-container">
+        {% for analysis_name, analysis_results in results.items() %}
+        <div class="result-section">
+            <h2 class="section-title">
+                {% if analysis_name == 'Повторяемость' %}
+                    <i class="fas fa-redo"></i>
+                {% elif analysis_name == 'Воспроизводимость' %}
+                    <i class="fas fa-exchange-alt"></i>
+                {% elif analysis_name == 'Правильность' %}
+                    <i class="fas fa-bullseye"></i>
+                {% endif %}
+                {{ analysis_name }}
+            </h2>
+
+            {% if 'Ошибка' in analysis_results %}
+            <div class="error-message">
+                <i class="fas fa-exclamation-triangle"></i>
+                <span>{{ analysis_results['Ошибка'] }}</span>
+            </div>
+            {% else %}
+            <div class="result-description">
+                <i class="fas fa-info-circle"></i>
+                <p>{{ analysis_results.pop('Описание') }}</p>
+            </div>
+
+            <div class="result-table-container">
+                <table class="result-table">
+                    {% for param, value in analysis_results.items() %}
+                    <tr>
+                        <td>{{ param }}</td>
+                        <td class="result-value">
+                            {% if value is number and not value is string %}
+                                {{ "%.4f"|format(value) }}
+                            {% else %}
+                                {{ value }}
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </table>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if graphs %}
+    <div class="visualization-section">
+        <h2 class="section-title">
+            <i class="fas fa-chart-bar"></i> Визуализация данных
+        </h2>
+
+        {% if 'histogram' in graphs %}
+        <div class="graph-card">
+            <h3 class="graph-title">
+                <i class="fas fa-chart-pie"></i> Гистограмма распределения
+            </h3>
+            <div class="graph-container">
+                {{ graphs['histogram']|safe }}
+            </div>
+            <div class="graph-description">
+                <p><strong>Интерпретация:</strong> Показывает форму распределения данных для проверки нормальности.</p>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if 'boxplot' in graphs %}
+        <div class="graph-card">
+            <h3 class="graph-title">
+                <i class="fas fa-boxes"></i> Сравнение лабораторий
+            </h3>
+            <div class="graph-container">
+                {{ graphs['boxplot']|safe }}
+            </div>
+            <div class="graph-description">
+                <p><strong>Интерпретация:</strong> Визуализирует межлабораторную изменчивость и выявляет аномалии.</p>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if 'control_chart' in graphs %}
+        <div class="graph-card">
+            <h3 class="graph-title">
+                <i class="fas fa-chart-line"></i> Контрольная карта
+            </h3>
+            <div class="graph-container">
+                {{ graphs['control_chart']|safe }}
+            </div>
+            <div class="graph-description">
+                <p><strong>Интерпретация:</strong> Отслеживает стабильность процесса измерений во времени.</p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <div class="action-buttons">
+        <button id="exportBtn" class="btn btn-success">
+            <i class="fas fa-file-excel"></i> Экспорт в Excel
+        </button>
+        <a href="/" class="btn">
+            <i class="fas fa-redo"></i> Новый анализ
+        </a>
+    </div>
+</div>
+
+<script>
+    <!-- Тепловая карта лабораторий -->
+{% if 'heatmap' in graphs %}
+<div class="graph-container">
+    <h3>3. Тепловая карта результатов по лабораториям</h3>
+    {{ graphs['heatmap']|safe }}
+    <div class="graph-description">
+        <p><strong>Анализ:</strong> Тепловая карта позволяет визуально сравнить результаты между лабораториями. Более светлые/темные цвета указывают на более высокие/низкие значения. Позволяет быстро выявить лаборатории с систематически завышенными или заниженными результатами.</p>
+    </div>
+</div>
+{% endif %}
+document.addEventListener('DOMContentLoaded', function() {
+    // Установка текущей даты, если не передана с сервера
+    const dateElement = document.querySelector('.analysis-meta .meta-item:first-child span');
+    if (dateElement && !dateElement.textContent.trim()) {
+        const now = new Date();
+        dateElement.textContent = now.toLocaleString('ru-RU');
+    }
+
+    // Обработка экспорта в Excel
+    document.getElementById('exportBtn').addEventListener('click', function() {
+        const btn = this;
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Подготовка отчета...';
+        btn.disabled = true;
+
+        fetch('/download_results', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                results: {{ results|tojson }},
+                reference_value: {{ reference_value|tojson if reference_value else 'null' }},
+                graphs: {{ graphs|tojson if graphs else '{}' }}
+            })
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(err => {
+                    throw new Error(err.error || 'Ошибка генерации файла');
+                });
+            }
+            return response.blob();
+        })
+        .then(blob => {
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `analysis_results_${new Date().toISOString().slice(0,10)}.xlsx`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+        })
+        .catch(error => {
+            alert('Ошибка при экспорте: ' + error.message);
+            console.error('Export error:', error);
+        })
+        .finally(() => {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        });
+    });
+});
+</script>
+
+<style>
+.analysis-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+    padding: 1rem;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+}
+
+.meta-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 1rem;
+}
+
+.meta-item i {
+    color: var(--secondary);
+    font-size: 1.1rem;
+}
+
+.section-title {
+    color: var(--primary);
+    margin: 1.5rem 0 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 1.3rem;
+}
+
+.section-title i {
+    color: var(--secondary);
+}
+
+.result-section {
+    margin-bottom: 2.5rem;
+    padding: 1.5rem;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.result-description {
+    display: flex;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    background-color: #e8f4fd;
+    border-radius: 6px;
+    color: #2c3e50;
+}
+
+.result-description i {
+    color: var(--secondary);
+    font-size: 1.2rem;
+    margin-top: 2px;
+}
+
+.result-table-container {
+    overflow-x: auto;
+}
+
+.result-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.result-table th {
+    background-color: var(--primary);
+    color: white;
+    padding: 0.75rem;
+    text-align: left;
+}
+
+.result-table td {
+    padding: 0.75rem;
+    border: 1px solid #e0e0e0;
+}
+
+.result-table tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+.result-value {
+    font-family: 'Courier New', monospace;
+    font-weight: 600;
+    color: var(--accent);
+    text-align: right;
+}
+
+.visualization-section {
+    margin-top: 3rem;
+    padding-top: 2rem;
+    border-top: 1px solid #eee;
+}
+
+.graph-card {
+    margin-bottom: 2.5rem;
+    padding: 1.5rem;
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.graph-title {
+    color: var(--primary);
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 1.2rem;
+}
+
+.graph-title i {
+    color: var(--accent);
+}
+
+.graph-container {
+    width: 100%;
+    height: 500px;
+    margin: 1rem 0;
+}
+
+.graph-description {
+    margin-top: 1rem;
+    padding: 1rem;
+    background-color: #f0f7ff;
+    border-radius: 6px;
+    color: #2c3e50;
+    font-size: 0.95rem;
+}
+
+.action-buttons {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-top: 3rem;
+    padding-top: 2rem;
+    border-top: 1px solid #eee;
+}
+
+.action-buttons .btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    padding: 1rem;
+}
+
+@media (max-width: 768px) {
+    .analysis-meta {
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .action-buttons {
+        flex-direction: column;
+    }
+
+    .graph-container {
+        height: 400px;
+    }
+}
+
+@media (max-width: 576px) {
+    .card {
+        padding: 1.5rem;
+    }
+
+    .result-section {
+        padding: 1.25rem;
+    }
+
+    .graph-card {
+        padding: 1.25rem;
+    }
+}
+</style>
+{% endblock %}

@@ -1,0 +1,474 @@
+[file name]: index.html
+[file content begin]
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <h1 class="card-title">Анализ точности измерений по ГОСТ Р ИСО 5725-2-2002</h1>
+    <p>Загрузите файл Excel с данными измерений для анализа повторяемости, воспроизводимости и правильности.</p>
+
+    <form id="uploadForm" action="/upload" method="POST" enctype="multipart/form-data">
+        <!-- Drag and Drop зона -->
+        <div class="drop-area" id="dropArea">
+            <div class="drop-content">
+                <i class="fas fa-cloud-upload-alt"></i>
+                <h3>Перетащите файл сюда</h3>
+                <p>или</p>
+                <label for="file" class="btn">
+                    <i class="fas fa-folder-open"></i> Выберите файл
+                </label>
+                <input type="file" id="file" name="file" accept=".xlsx,.xls" required style="display: none;">
+            </div>
+            <div id="fileInfo" class="file-info hidden">
+                <i class="fas fa-file-excel"></i>
+                <span id="fileName"></span>
+                <button type="button" id="removeFile" class="btn-icon">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Блок предпросмотра данных -->
+        <div id="dataPreview" class="hidden">
+            <h3>Предпросмотр данных</h3>
+            <div class="preview-info">
+                <span id="rowCount"></span>
+                <span id="columnsInfo"></span>
+            </div>
+            <div class="preview-table-container">
+                <table class="preview-table" id="previewTable">
+                    <thead>
+                        <tr id="previewHeaders"></tr>
+                    </thead>
+                    <tbody id="previewBody"></tbody>
+                </table>
+            </div>
+            <div class="preview-alert" id="previewAlert"></div>
+        </div>
+
+        <div class="form-group">
+            <label>Выберите расчеты:</label>
+            <div class="checkbox-group">
+                <div class="checkbox-item">
+                    <input type="checkbox" id="repeatability" name="calculations" value="repeatability" checked>
+                    <label for="repeatability">Повторяемость</label>
+                    <div class="tooltip">
+                        <i class="fas fa-info-circle"></i>
+                        <span class="tooltiptext">Требуется столбец "Data" с результатами измерений</span>
+                    </div>
+                </div>
+                <div class="checkbox-item">
+                    <input type="checkbox" id="reproducibility" name="calculations" value="reproducibility" checked>
+                    <label for="reproducibility">Воспроизводимость</label>
+                    <div class="tooltip">
+                        <i class="fas fa-info-circle"></i>
+                        <span class="tooltiptext">Требуются столбцы "Laboratory" и "Data"</span>
+                    </div>
+                </div>
+                <div class="checkbox-item">
+                    <input type="checkbox" id="trueness" name="calculations" value="trueness">
+                    <label for="trueness">Правильность</label>
+                    <div class="tooltip">
+                        <i class="fas fa-info-circle"></i>
+                        <span class="tooltiptext">Требуется столбец "Data" и опорное значение</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-group" id="referenceValueContainer" style="display: none;">
+            <label for="reference_value">Опорное значение (для оценки правильности)</label>
+            <input type="number" id="reference_value" name="reference_value" step="any">
+        </div>
+
+        <button type="submit" class="btn btn-accent" id="submitBtn">
+            <i class="fas fa-calculator"></i> Выполнить расчеты
+        </button>
+    </form>
+
+    <div class="requirements">
+        <h3>Требования к файлу данных:</h3>
+        <ul>
+            <li>Формат: Excel (.xlsx или .xls)</li>
+            <li>Для анализа повторяемости: столбец "Data" с результатами измерений</li>
+            <li>Для анализа воспроизводимости: столбцы "Laboratory" (идентификатор лаборатории) и "Data"</li>
+            <li>Для анализа правильности: столбец "Data" и указание опорного значения</li>
+            <li>Дополнительные столбцы: "Date" или "Order" для временных графиков</li>
+        </ul>
+        <p><a href="/gost">Подробнее о стандарте ГОСТ Р ИСО 5725-2-2002</a></p>
+    </div>
+</div>
+
+<style>
+    .drop-area {
+        border: 2px dashed #3498db;
+        border-radius: 8px;
+        padding: 30px;
+        text-align: center;
+        margin-bottom: 20px;
+        transition: all 0.3s;
+        position: relative;
+    }
+
+    .drop-area.highlight {
+        background-color: #f0f8ff;
+        border-color: #2ecc71;
+    }
+
+    .drop-content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        color: #7f8c8d;
+    }
+
+    .drop-area i {
+        font-size: 48px;
+        color: #3498db;
+        margin-bottom: 15px;
+    }
+
+    .drop-area h3 {
+        margin: 10px 0;
+        color: #2c3e50;
+    }
+
+    .drop-area p {
+        margin: 10px 0;
+    }
+
+    .file-info {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 15px;
+        background: #f8f9fa;
+        border-radius: 5px;
+        margin-top: 15px;
+    }
+
+    .file-info i {
+        font-size: 24px;
+        color: #27ae60;
+        margin-right: 10px;
+    }
+
+    .file-info span {
+        font-weight: 500;
+    }
+
+    .btn-icon {
+        background: none;
+        border: none;
+        color: #e74c3c;
+        cursor: pointer;
+        margin-left: 10px;
+        font-size: 16px;
+    }
+
+    .hidden {
+        display: none;
+    }
+
+    .preview-info {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 10px;
+        font-size: 0.9rem;
+        color: #666;
+    }
+
+    .preview-table-container {
+        max-height: 300px;
+        overflow-y: auto;
+        margin-bottom: 15px;
+        border: 1px solid #e0e0e0;
+        border-radius: 5px;
+    }
+
+    .preview-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .preview-table th, .preview-table td {
+        padding: 10px;
+        border: 1px solid #e0e0e0;
+        text-align: left;
+    }
+
+    .preview-table th {
+        background-color: #f5f5f5;
+        position: sticky;
+        top: 0;
+    }
+
+    .preview-table tr:nth-child(even) {
+        background-color: #f9f9f9;
+    }
+
+    .preview-alert {
+        padding: 10px;
+        border-radius: 5px;
+        margin-bottom: 15px;
+    }
+
+    .preview-alert.success {
+        background-color: #e8f5e9;
+        color: #2e7d32;
+    }
+
+    .preview-alert.warning {
+        background-color: #fff8e1;
+        color: #ff8f00;
+    }
+
+    .preview-alert.error {
+        background-color: #ffebee;
+        color: #c62828;
+    }
+
+    .tooltip {
+        position: relative;
+        display: inline-block;
+        margin-left: 8px;
+    }
+
+    .tooltip i {
+        color: #3498db;
+        cursor: pointer;
+    }
+
+    .tooltip .tooltiptext {
+        visibility: hidden;
+        width: 200px;
+        background-color: #555;
+        color: #fff;
+        text-align: center;
+        border-radius: 6px;
+        padding: 5px;
+        position: absolute;
+        z-index: 1;
+        bottom: 125%;
+        left: 50%;
+        margin-left: -100px;
+        opacity: 0;
+        transition: opacity 0.3s;
+        font-size: 0.8rem;
+        font-weight: normal;
+    }
+
+    .tooltip:hover .tooltiptext {
+        visibility: visible;
+        opacity: 1;
+    }
+
+    .loading {
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+</style>
+
+<script>
+    // Показываем поле опорного значения при выборе правильности
+    document.getElementById('trueness').addEventListener('change', function() {
+        document.getElementById('referenceValueContainer').style.display =
+            this.checked ? 'block' : 'none';
+    });
+
+    // Обработка отправки формы
+    document.getElementById('uploadForm').addEventListener('submit', function(e) {
+        const submitBtn = document.getElementById('submitBtn');
+        submitBtn.innerHTML = '<i class="fas fa-spinner loading"></i> Обработка данных...';
+        submitBtn.disabled = true;
+    });
+
+    // Drag and Drop функционал
+    const dropArea = document.getElementById('dropArea');
+    const fileInput = document.getElementById('file');
+    const fileInfo = document.getElementById('fileInfo');
+    const fileName = document.getElementById('fileName');
+    const removeFileBtn = document.getElementById('removeFile');
+    const dataPreview = document.getElementById('dataPreview');
+    const previewAlert = document.getElementById('previewAlert');
+
+    // Обработчики событий для drag and drop
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropArea.addEventListener(eventName, preventDefaults, false);
+    });
+
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropArea.addEventListener(eventName, highlight, false);
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropArea.addEventListener(eventName, unhighlight, false);
+    });
+
+    function highlight() {
+        dropArea.classList.add('highlight');
+    }
+
+    function unhighlight() {
+        dropArea.classList.remove('highlight');
+    }
+
+    // Обработка сброса файла
+    dropArea.addEventListener('drop', handleDrop, false);
+
+    function handleDrop(e) {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+
+        if (files.length) {
+            handleFiles(files);
+        }
+    }
+
+    // Обработка выбора файла через кнопку
+    fileInput.addEventListener('change', function() {
+        if (this.files.length) {
+            handleFiles(this.files);
+        }
+    });
+
+    // Удаление выбранного файла
+    removeFileBtn.addEventListener('click', function() {
+        fileInput.value = '';
+        fileInfo.classList.add('hidden');
+        dataPreview.classList.add('hidden');
+    });
+
+    // Обработка файлов
+    function handleFiles(files) {
+        const file = files[0];
+
+        // Проверка расширения файла
+        const allowedExtensions = /(\.xlsx|\.xls)$/i;
+        if (!allowedExtensions.exec(file.name)) {
+            showAlert('Пожалуйста, загрузите файл Excel (.xlsx или .xls)', 'error');
+            return;
+        }
+
+        // Обновляем интерфейс
+        fileName.textContent = file.name;
+        fileInfo.classList.remove('hidden');
+
+        // Связываем файл с input
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(file);
+        fileInput.files = dataTransfer.files;
+
+        // Показываем индикатор загрузки
+        dataPreview.classList.add('hidden');
+        previewAlert.innerHTML = '<i class="fas fa-spinner loading"></i> Загрузка данных...';
+        previewAlert.className = 'preview-alert';
+        previewAlert.classList.remove('hidden');
+
+        // Отправляем файл на сервер для предпросмотра
+        const formData = new FormData();
+        formData.append('file', file);
+
+        fetch('/preview', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                showAlert(data.error, 'error');
+                return;
+            }
+
+            // Отображаем предпросмотр данных
+            showDataPreview(data);
+        })
+        .catch(error => {
+            showAlert('Ошибка при загрузке файла', 'error');
+            console.error('Error:', error);
+        });
+    }
+
+    function showDataPreview(data) {
+        // Обновляем информацию о данных
+        document.getElementById('rowCount').textContent = `Записей: ${data.row_count}`;
+        document.getElementById('columnsInfo').textContent = `Столбцы: ${data.columns.join(', ')}`;
+
+        // Заполняем заголовки таблицы
+        const headersRow = document.getElementById('previewHeaders');
+        headersRow.innerHTML = '';
+        data.columns.forEach(column => {
+            const th = document.createElement('th');
+            th.textContent = column;
+            headersRow.appendChild(th);
+        });
+
+        // Заполняем тело таблицы
+        const previewBody = document.getElementById('previewBody');
+        previewBody.innerHTML = '';
+        data.preview.forEach(row => {
+            const tr = document.createElement('tr');
+            data.columns.forEach(column => {
+                const td = document.createElement('td');
+                td.textContent = row[column] !== null && row[column] !== undefined ? row[column] : '';
+                tr.appendChild(td);
+            });
+            previewBody.appendChild(tr);
+        });
+
+        // Проверяем наличие обязательных столбцов
+        const requiredColumns = {
+            'repeatability': ['Data'],
+            'reproducibility': ['Data', 'Laboratory'],
+            'trueness': ['Data']
+        };
+
+        let missingColumns = {};
+        const calculations = ['repeatability', 'reproducibility', 'trueness'];
+
+        calculations.forEach(calc => {
+            if (document.getElementById(calc).checked) {
+                const missing = requiredColumns[calc].filter(col => !data.columns.includes(col));
+                if (missing.length > 0) {
+                    missingColumns[calc] = missing;
+                }
+            }
+        });
+
+        if (Object.keys(missingColumns).length > 0) {
+            let message = 'Внимание: Для выбранных расчетов отсутствуют необходимые столбцы: ';
+            const parts = [];
+
+            for (const [calc, cols] of Object.entries(missingColumns)) {
+                parts.push(`${calc} (${cols.join(', ')})`);
+            }
+
+            message += parts.join('; ');
+            showAlert(message, 'warning');
+        } else {
+            showAlert('Файл успешно загружен и готов к анализу', 'success');
+        }
+
+        // Показываем блок предпросмотра
+        dataPreview.classList.remove('hidden');
+    }
+
+    function showAlert(message, type) {
+        previewAlert.innerHTML = message;
+        previewAlert.className = 'preview-alert';
+        previewAlert.classList.add(type);
+        previewAlert.classList.remove('hidden');
+    }
+</script>
+{% endblock %}
+[file content end]
